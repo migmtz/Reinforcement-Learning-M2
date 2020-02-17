@@ -1,0 +1,470 @@
+## Celui-ci c'est un code avec tous les différents agents utilisés, du TME2 au TME8
+
+## Agent Random :
+
+class RandomAgent(object):
+    """The world's simplest agent!"""
+
+    def __init__(self, action_space):
+        self.action_space = action_space
+
+    def act(self, observation, reward, done):
+        return self.action_space.sample()
+
+## TME 2 : Policy and Value Iteration
+
+class policy_iteration_agent(object):
+    def __init__(self, action_space, statedic, mdp, epsilon = 0.01, gamma = 0.9):
+        self.action_space = action_space
+        self.statedic = statedic
+        self.mdp = mdp
+        self.epsilon = epsilon
+        self.gamma = gamma
+        self.pi = np.random.randint(action_space.n, size = len(statedic))
+
+    def act(self, obs, reward, done):
+        obs = self.statedic[str(obs.tolist())]
+        return(self.pi[obs])
+
+    def fit(self):
+        flag_pi = False
+        while not(flag_pi):
+            self.V = np.random.rand(len(self.statedic))
+            flag_V = False
+            while not(flag_V):
+                V_precedent = self.V
+                for s in self.mdp.keys():
+                    i = self.statedic[s]
+                    action_pi = self.mdp[s][self.pi[i]]
+                    for (p, s_p, r, d) in action_pi:
+                        self.V[i] += p*(r + self.gamma*V_precedent[self.statedic[s_p]])
+                        if d:
+                            self.V[self.statedic[s_p]] = r
+                    #self.V[i] = np.sum([ p*(r + self.gamma*V_precedent[self.statedic[s_p]]) for (p, s_p, r, d) in action_pi])
+
+                flag_V = np.linalg.norm(self.V - V_precedent) <= self.epsilon
+                print(self.V)
+            pi_precedent = self.pi
+            for s in mdp.keys():
+                aux = [np.sum([p*(r + self.gamma*self.V[self.statedic[s_p]]) for (p, s_p, r, d) in self.mdp[s][a]])  for a in range(self.action_space.n)]
+                self.pi[self.statedic[s]] = np.argmax(aux)
+            #aux = np.array([ [ np.sum([p*(r + self.gamma*self.V[self.statedic[s_p]]) for (p, s_p, r, d) in self.mdp[s][a]])  for a in range(self.action_space.n)]   for i,s in enumerate(self.statedic.keys())]) # 9 lignes et 4 colonnes
+            #self.pi = aux.argmax(axis=1)
+            flag_pi = np.array_equal(self.pi,pi_precedent)
+        return('done fitting')
+
+
+class value_iteration_agent(object):
+
+    def __init__(self, action_space, statedic, mdp, epsilon = 0.01, gamma = 0.9):
+        self.action_space = action_space
+        self.statedic = statedic
+        self.mdp = mdp
+        self.epsilon = epsilon
+        self.gamma = gamma
+        self.pi = np.random.randint(action_space.n, size = len(statedic))
+
+    def act(self, obs, reward, done):
+        obs = self.statedic[str(obs.tolist())]
+        return(self.pi[obs])
+
+    def fit(self):
+        self.V = np.random.rand(len(statedic))
+        flag_V = False
+        while not(flag_V):
+            old_V = self.V
+            for s in self.mdp.keys():
+                i = self.statedic[s]
+                max_sum = [np.sum([p*(r + self.gamma*old_V[self.statedic[s_p]]) for (p,s_p,r,d) in self.mdp[s][a]]) for a in range(self.action_space.n)]
+                self.V[i] = np.argmax(max_sum)
+            flag_V = np.linalg.norm(self.V-old_V) <= self.epsilon
+        for s in self.mdp.keys():
+            self.pi[self.statedic[s]] = np.argmax([np.sum([p*(r + self.gamma*self.V[self.statedic[s_p]]) for (p,s_p,r,d) in self.mdp[s][a]]) for a in range(self.action_space.n)])
+        return('done fitting')
+
+## TME 3 : Q-Learning
+
+class Q_Learning_agent(object):
+    def __init__(self,action_space,statedic,alpha,gamma):
+        self.action_space = action_space
+        self.statedic = statedic
+        self.alpha = alpha
+        self.gamma = gamma
+        self.Q = np.zeros((len(statedic),action_space.n)) #state x action
+
+    def act(self,obs,reward,done):
+        i = self.statedic[str(obs.tolist())]
+        return(np.argmax(self.Q[i]))
+
+    def update(self,obs,action,reward,done,obs_p):
+        i = self.statedic[str(obs.tolist())]
+        i_1 = self.statedic[str(obs_p.tolist())]
+        self.Q[i,action] = self.Q[i,action] + self.alpha*(reward + self.gamma*np.max(self.Q[i_1])  - self.Q[i,action])
+
+
+class Sarsa_agent(object):
+    def __init__(self,action_space,statedic,alpha,gamma,epsilon):
+        self.action_space = action_space
+        self.statedic = statedic
+        self.alpha = alpha
+        self.gamma = gamma
+        self.Q = np.zeros((len(statedic),action_space.n)) #state x action
+        self.epsilon = epsilon
+
+    def act(self,obs,reward,done):
+        i = self.statedic[str(obs.tolist())]
+        chance = np.random.uniform(0,1)
+        if chance < self.epsilon:
+            return(env.action_space.sample())
+        else:
+            return(np.argmax(self.Q[i]))
+
+    def update(self,obs,action,reward,done,obs_p):
+        i = self.statedic[str(obs.tolist())]
+        i_1 = self.statedic[str(obs_p.tolist())]
+        a_1 = np.argmax(self.Q[i_1])
+        self.Q[i,action] = self.Q[i,action] + self.alpha*(reward + self.gamma*self.Q[i_1,a_1]  - self.Q[i,action])
+
+
+class Dyna_Q_agent(object):
+    def __init__(self,action_space,statedic,alpha,gamma,epsilon,alpha_R,k = 10):
+        self.action_space = action_space
+        self.statedic = statedic
+        self.alpha = alpha
+        self.gamma = gamma
+        self.Q = np.zeros((len(statedic),action_space.n)) #state x action
+        self.epsilon = epsilon
+        self.R = np.zeros((len(statedic),action_space.n,len(statedic)))
+        self.P = np.zeros((len(statedic),action_space.n,len(statedic)))
+        self.alpha_R = alpha_R
+        self.k = k
+
+    def act(self,obs,reward,done):
+        i = self.statedic[str(obs.tolist())]
+        chance = np.random.uniform(0,1)
+        if chance < self.epsilon:
+            return(self.action_space.sample())
+        else:
+            return(np.argmax(self.Q[i]))
+
+    def update(self,obs,action,reward,done,obs_p):
+        #Update Q
+        i = self.statedic[str(obs.tolist())]
+        i_1 = self.statedic[str(obs_p.tolist())]
+        self.Q[i,action] = self.Q[i,action] + self.alpha*(reward + self.gamma*np.max(self.Q[i_1])  - self.Q[i,action])
+        #Update MDP
+        self.R[i,action,i_1] += self.alpha_R*(reward - self.R[i,action,i_1])
+        for j in range(len(statedic)):
+            self.P[i,action,j] += self.alpha_R*(float(j == i_1) - self.P[i,action,i_1])
+        #Sampled Update
+        rand_state = np.random.randint(0,len(statedic),self.k)
+        rand_action = np.random.randint(0,self.action_space.n,self.k)
+        for s,a in zip(rand_state,rand_action):
+            aux = [self.P[s,a,s_p]*(self.R[s,a,s_p] + self.gamma*np.max(self.Q[s_p])) for s_p in range(len(statedic))]
+            self.Q[s,a] += self.alpha*(np.sum(aux) - self.Q[s,a])
+
+## TME 4 : DQN
+
+class NN(nn.Module): # Module pour les couches profondes
+    def __init__(self, inSize, outSize, layers=[],softmax = False):
+        super(NN, self).__init__()
+        self.layers = nn.ModuleList([])
+        for x in layers:
+            self.layers.append(nn.Linear(inSize, x))
+            inSize = x
+        self.layers.append(nn.Linear(inSize, outSize))
+        self.soft_flag = softmax
+
+    def forward(self, x):
+        x = self.layers[0](x)
+        for i in range(1, len(self.layers)):
+            x = torch.nn.functional.leaky_relu(x)
+            x = self.layers[i](x)
+        if self.soft_flag:
+            x = torch.nn.functional.softmax(x,dim=-1)
+        return x
+
+class Memory(): # Pour le Memory replay
+    def __init__(self,max_size = 100000):
+        self.memory = deque(maxlen = max_size)
+
+    def __len__(self):
+        return(len(self.memory))
+
+    def sample(self,batch_size = 100):
+        idx = np.random.randint(0,len(self.memory),batch_size)
+        batch = [self.memory[i] for i in idx]
+        return(batch)
+
+    def store(self,obs):
+        self.memory.append(obs)
+
+class DQN(object):
+    def __init__(self,action_space,epsilon,gamma,l_r,inSize,outSize,layers=[]):
+        self.action_space = action_space
+        self.Q = NN(inSize,outSize,layers)
+        self.gamma = gamma
+        self.epsilon = epsilon
+        self.optim = torch.optim.Adam(self.Q.parameters(),l_r)
+        self.loss = nn.MSELoss(reduction = "mean")
+
+    def act(self,obs,reward,done):
+        limit = (self.epsilon/self.action_space.n + 1 - self.epsilon)
+        chance = np.random.uniform(0,1)
+        if(chance < limit):
+            action = torch.argmax(self.Q.forward(torch.tensor(obs).float())).item()
+        else:
+            action = self.action_space.sample()
+        return(action)
+
+    def update(self,obs,action,reward,done,obs_p):
+        self.optim.zero_grad()
+        target = reward + (1-done)*self.gamma*self.Q.forward(torch.tensor(obs).float())
+        loss = self.loss(self.Q.forward(torch.tensor(obs).float()),target)
+        loss.backward()
+        self.optim.step()
+
+
+class DQN_replay_target(object):
+    def __init__(self,action_space,epsilon,gamma,l_r,inSize,outSize,layers=[]):
+        self.action_space = action_space
+        self.Q = NN(inSize,outSize,layers)
+        self.Q_targ = copy.deepcopy(self.Q)
+        self.gamma = gamma
+        self.epsilon = epsilon
+        self.optim = torch.optim.Adam(self.Q.parameters(),l_r)
+        self.loss = nn.MSELoss(reduction = "mean")
+        self.memory = Memory()
+        self.reset_count = 0
+        self.reset_n = 100
+
+    def act(self,obs,reward,done):
+        limit = (self.epsilon/self.action_space.n + 1 - self.epsilon)
+        chance = np.random.uniform(0,1)
+        if(chance < limit):
+            action = torch.argmax(self.Q_targ.forward(torch.tensor(obs).float())).item()
+        else:
+            action = self.action_space.sample()
+        return(action)
+
+    def update(self,obs,action,reward,done,obs_p):
+        self.optim.zero_grad()
+        self.memory.store((torch.tensor(obs).float(),action,reward,done,torch.tensor(obs_p).float()))
+        replay_list = self.memory.sample(100)
+        aux,aux_a = torch.stack([s for (s,_,_,_,_) in replay_list]), torch.stack([torch.tensor(a) for (_,a,_,_,_) in replay_list]).reshape(-1,1)
+        pred = self.Q.forward(aux)
+        pred = pred.gather(1,aux_a)
+        target = torch.tensor([[r + float(1-d)*self.gamma*self.Q_targ.forward(s_p).max().item()] for (_,_,r,d,s_p) in replay_list],requires_grad = True)
+        #aux = torch.tensor([self.Q.forward(s)[a].item() for (s,a,_,_,_) in replay_list],requires_grad = True)
+        loss = self.loss(pred,target)
+        loss.backward()
+        self.optim.step()
+        self.reset_count += 1
+        if self.reset_count == self.reset_n:
+            self.Q_targ = copy.deepcopy(self.Q)
+            self.reset_count = 0
+
+## TME 5 : A2C
+
+class online_a2c(object):
+    def __init__(self,action_space,epsilon,gamma,l_r_V,l_r_pi,inSize,outSize,layers_V,layers_pi):
+        self.action_space = action_space
+        self.pi = NN(inSize,outSize,layers_pi)
+        self.V = NN(inSize,1,layers_V)
+        self.optim_V = torch.optim.Adam(self.V.parameters(),l_r_V)
+        self.optim_pi = torch.optim.Adam(self.pi.parameters(),l_r_pi)
+        self.gamma = gamma
+        self.epsilon = epsilon
+        self.loss_V = nn.SmoothL1Loss(reduction="mean")
+
+    def act(self,obs,reward,done):
+        limit = (self.epsilon/self.action_space.n + 1 - self.epsilon)
+        chance = np.random.uniform(0,1)
+        if(chance < limit):
+            action = torch.argmax(self.pi.forward(torch.tensor(obs).float())).item()
+        else:
+            action = self.action_space.sample()
+        return(action)
+
+    def update(self,obs,action,reward,done,obs_p):
+        # Update V
+        self.optim_V.zero_grad()
+        target_V = reward + float(1-done)*self.V.forward(torch.tensor(obs_p).float())
+        loss_V = self.loss_V(self.V.forward(torch.tensor(obs).float()),target_V)
+        loss_V.backward()
+        self.optim_V.step()
+
+        # Update Pi
+        self.optim_pi.zero_grad()
+        A = reward + self.gamma*self.V.forward(torch.tensor(obs_p).float()) - self.V.forward(torch.tensor(obs).float())
+        aux = self.pi.forward(torch.tensor(obs).float())[action]
+        loss_pi = -torch.log(aux)*A
+        loss_pi.backward()
+        self.optim_pi.step()
+
+class batch_a2c(object):
+    def __init__(self,action_space,epsilon,gamma,l_r_V,l_r_pi,inSize,outSize,layers_V,layers_pi):
+        self.action_space = action_space
+        self.pi = NN(inSize,outSize,layers_pi)
+        self.V = NN(inSize,1,layers_V)
+        self.optim_V = torch.optim.Adam(self.V.parameters(),l_r_V)
+        self.optim_pi = torch.optim.Adam(self.pi.parameters(),l_r_pi)
+        self.gamma = gamma
+        self.epsilon = epsilon
+        self.loss_V = nn.SmoothL1Loss(reduction="mean")
+        self.episode = []
+
+    def act(self,obs,reward,done):
+        limit = (self.epsilon/self.action_space.n + 1 - self.epsilon)
+        chance = np.random.uniform(0,1)
+        if(chance < limit):
+            action = torch.argmax(self.pi.forward(torch.tensor(obs).float())).item()
+        else:
+            action = self.action_space.sample()
+        return(action)
+
+    def update(self,obs,action,reward,done,obs_p):
+        self.episode += [(obs,action,reward,done,obs_p)]
+        if done:
+            self.update_weights()
+            self.episode = []
+
+    def update_weights(self):
+        # Update V
+        self.optim_V.zero_grad()
+        R = 0
+        Vloss = torch.zeros(1,requires_grad = True)
+        for (s,_,r,_,_) in reversed(self.episode):
+            R = r + self.gamma*R
+            Vloss = Vloss + self.loss_V(self.V.forward(torch.tensor(s).float()),torch.tensor(R))
+        Vloss.backward()
+        self.optim_V.step()
+
+        # Update pi
+        self.optim_pi.zero_grad()
+        R = 0
+        piloss = torch.zeros(1,requires_grad = True)
+        for (s,a,r,_,s_p) in self.episode:
+            A = r + self.gamma*self.V.forward(torch.tensor(s_p).float()) - self.V.forward(torch.tensor(s).float())
+            aux = self.pi.forward(torch.tensor(s).float())[a]
+            piloss = piloss - torch.log(aux)*A
+        piloss.backward()
+        self.optim_pi.step()
+
+## TME 6 : PPO
+
+class KL_PPO(object):
+    def __init__(self,action_space,epsilon,beta,delta,gamma,K,l_r,inSize,outSize,layers):
+        self.action_space = action_space
+        self.beta = beta
+        self.delta = delta
+        self.epsilon = epsilon
+        self.gamma = gamma
+        self.K = K
+        self.pi = NN(inSize,outSize,layers,softmax = True)
+        self.pi_aux = copy.deepcopy(self.pi)
+        self.V = NN(inSize,1,layers)
+        self.optim_V = torch.optim.Adam(self.V.parameters(),l_r)
+        self.optim_pi = torch.optim.Adam(self.pi_aux.parameters(),l_r)
+        self.loss_V = nn.SmoothL1Loss(reduction="mean")
+        self.loss_kl = nn.KLDivLoss(reduction="sum")
+        self.batch = []
+        self.episodes = []
+
+    def act(self,obs,reward,done):
+        limit = (self.epsilon/self.action_space.n + 1 - self.epsilon)
+        chance = np.random.uniform(0,1)
+        if(chance < limit):
+            action = torch.argmax(self.pi.forward(torch.tensor(obs).float())).item()
+        else:
+            action = self.action_space.sample()
+        return(action)
+
+    def update(self,obs,action,reward,done,obs_p):
+        self.episodes += [(obs,action,reward,done,obs_p)]
+        if done:
+            self.batch += [self.episodes]
+            self.episodes = []
+            if self.K == len(self.batch):
+                self.update_policy()
+                self.batch = []
+
+    def update_policy(self):
+        # Update V
+        self.optim_V.zero_grad()
+        for episode in self.batch:
+            reward_exp = torch.zeros(1,requires_grad = True)
+            loss_v_tot = torch.zeros(1,requires_grad = True)
+            for s,a,r,d,s_p in reversed(episode):
+                reward_exp = self.gamma*reward_exp + r
+                loss_v_tot = loss_v_tot + self.loss_V(self.V.forward(torch.tensor(s).float()),reward_exp.float())
+        loss_v_tot = loss_v_tot
+        loss_v_tot.backward()
+        self.optim_V.step()
+
+        # Update pi
+        for episode in self.batch:
+            kl = torch.zeros(1,requires_grad = False)
+            self.optim_pi.zero_grad()
+            R = torch.zeros(1,requires_grad = True)
+            loss_pi_ep = torch.zeros(1,requires_grad = True)
+            for s,a,r,d,s_p in reversed(episode):
+                R = self.gamma*R + r
+                A = R - self.V.forward(torch.tensor(s).float())
+                aux = self.pi_aux.forward(torch.tensor(s).float())
+                old = self.pi.forward(torch.tensor(s).float())
+                kl_loss = self.loss_kl(torch.log(aux),old)
+                kl += kl_loss
+                loss_pi_ep = loss_pi_ep - A*(aux[a]/old[a]) + self.beta*kl_loss
+            loss_pi_ep.backward()
+            self.optim_pi.step()
+            if kl >= 1.5*self.delta:
+                self.beta = 2*self.beta
+            if kl <= self.delta/1.5:
+                self.beta = 0.5*self.beta
+        self.pi = copy.deepcopy(self.pi_aux)
+
+class Clip_PPO(object):
+    def __init__(self,action_space,epsilon,threshold,gamma,K,l_r,inSize,outSize,layers):
+        self.action_space = action_space
+        self.threshold = threshold
+        self.epsilon = epsilon
+        self.gamma = gamma
+        self.K = K
+        self.pi = NN(inSize,outSize,layers,softmax = True)
+        self.pi_aux = copy.deepcopy(self.pi)
+        self.V = NN(inSize,1,layers)
+        self.optim_V = torch.optim.Adam(self.V.parameters(),l_r)
+        self.optim_pi = torch.optim.Adam(self.pi_aux.parameters(),l_r)
+        self.loss_V = nn.SmoothL1Loss(reduction="mean")
+        self.batch = []
+        self.episodes = []
+
+    def act(self,obs,reward,done):
+        limit = (self.epsilon/self.action_space.n + 1 - self.epsilon)
+        chance = np.random.uniform(0,1)
+        if(chance < limit):
+            action = torch.argmax(self.pi.forward(torch.tensor(obs).float())).item()
+        else:
+            action = self.action_space.sample()
+        return(action)
+
+    def update(self,obs,action,reward,done,obs_p):
+        self.episodes += [(obs,action,reward,done,obs_p)]
+        if done:
+            self.batch += [self.episodes]
+            self.episodes = []
+            if self.K == len(self.batch):
+                self.update_policy()
+                self.batch = []
+
+    def update_policy(self):
+        # Update V
+        self.optim_V.zero_grad()
+        for episode in self.batch:
+            reward_exp = torch.zeros(1,requires_grad = True)
+            loss_v_tot = torch.zeros(1,requires_grad = True)
+            for s,a,r,d,s_p in reversed(episode):
+                reward_exp = self.gamma*reward_exp + r
+                loss_v_tot = loss_v_tot + self.loss_V(self.V.forward(torch.tensor(s).float()),reward_exp.float())
+        loss_v_tot = loss_v_tot
