@@ -7,4 +7,6 @@ The different environments can be found in the environments folder, usually usin
 
 The agents folder contains the many different agents coded for every project (10 in total).
 
+Information can be found in -> http://dac.lip6.fr/master/rladl/
+
 Feel free to contact me for any mistake you might find or if you have any question.
